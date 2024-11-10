@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuantZ Balloon Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"></link>
+    <style>
+        .balloon {
+            transition: all 0.3s ease-in-out;
+            background: radial-gradient(circle at 50% 50%, #ff7f7f, #ff4d4d);
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .balloon::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 10px;
+            height: 20px;
+            background: #ff4d4d;
+            border-radius: 50%;
+        }
+        .balloon::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 10px;
+            background: #ff4d4d;
+            border-radius: 50%;
+        }
+        .burst {
+            animation: burst 0.5s forwards;
+        }
+        @keyframes burst {
+            to {
+                transform: scale(0);
+                opacity: 0;
+            }
+        }
+        .background-animation {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+        .background-animation div {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: move 10s linear infinite;
+        }
+        @keyframes move {
+            0% {
+                transform: translateY(0) translateX(0);
+            }
+            100% {
+                transform: translateY(-100vh) translateX(100vw);
+            }
+        }
+        .background-animation div:nth-child(odd) {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 0;
+            width: 30px;
+            height: 30px;
+        }
+        .background-animation div:nth-child(even) {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen relative">
+    <div class="background-animation">
+        <div style="top: 80%; left: 20%; animation-duration: 12s;"></div>
+        <div style="top: 60%; left: 40%; animation-duration: 15s;"></div>
+        <div style="top: 40%; left: 60%; animation-duration: 18s;"></div>
+        <div style="top: 20%; left: 80%; animation-duration: 20s;"></div>
+        <div style="top: 10%; left: 10%; animation-duration: 22s;"></div>
+        <div style="top: 70%; left: 30%; animation-duration: 14s;"></div>
+        <div style="top: 50%; left: 50%; animation-duration: 16s;"></div>
+        <div style="top: 30%; left: 70%; animation-duration: 19s;"></div>
+        <div style="top: 90%; left: 90%; animation-duration: 21s;"></div>
+        <div style="top: 20%; left: 20%; animation-duration: 23s;"></div>
+    </div>
+    <div id="root" class="w-full max-w-md mx-auto p-4 bg-gray-800 shadow-lg rounded-lg"></div>
+    <footer class="mt-4 text-center text-gray-500">
+        Made with ❤️ By <a href="https://github.com/shashoriginal" class="text-blue-400 hover:underline">Shashank</a>. Game Inspired by Optiver
+    </footer>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const LandingForm = ({ onStart }) => {
+            const [name, setName] = useState('');
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (name.trim()) {
+                    onStart(name);
+                } else {
+                    alert('Please enter your name.');
+                }
+            };
+
+            return (
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold mb-4">Welcome to QuantZ Balloon Game</h1>
+                    <form onSubmit={handleSubmit} className="mb-4">
+                        <input
+                            type="text"
+                            placeholder="Enter your name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="bg-gray-700 text-white px-4 py-2 rounded-md mb-4 w-full"
+                        />
+                        <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                            Start Game
+                        </button>
+                    </form>
+                </div>
+            );
+        };
+
+        const BalloonGame = ({ playerName }) => {
+            const totalRounds = 39;
+            const minPumps = 5;
+            const maxPumps = 15;
+            const [currentRound, setCurrentRound] = useState(1);
+            const [currentEarnings, setCurrentEarnings] = useState(0);
+            const [totalEarnings, setTotalEarnings] = useState(0);
+            const [pumpCount, setPumpCount] = useState(0);
+            const [explosionThreshold, setExplosionThreshold] = useState(generateExplosionThreshold());
+            const [balloonSize, setBalloonSize] = useState(64);
+            const [isBurst, setIsBurst] = useState(false);
+            const [gameData, setGameData] = useState([]);
+            const [showDashboard, setShowDashboard] = useState(false);
+
+            // Behavioral factors
+            const [userAggression, setUserAggression] = useState(0);
+            const [learningFactor, setLearningFactor] = useState(1);
+
+            function generateExplosionThreshold() {
+                // Complex formula for explosion threshold
+                const baseThreshold = Math.floor(Math.random() * (maxPumps - minPumps + 1)) + minPumps;
+                return Math.floor(baseThreshold * (1 + userAggression / 10)); // Adjust threshold based on user aggression
+            }
+
+            useEffect(() => {
+                calculateUserAggression();
+            }, [gameData]);
+
+            const handlePump = () => {
+                if (isBurst) return;
+
+                setPumpCount(pumpCount + 1);
+                setCurrentEarnings(currentEarnings + 0.05);
+                setBalloonSize(balloonSize + 10);
+
+                if (pumpCount + 1 >= explosionThreshold) {
+                    handleBurst();
+                }
+            };
+
+            const handleBurst = () => {
+                setIsBurst(true);
+                const penalty = calculatePenalty();
+                setTotalEarnings(totalEarnings - penalty);
+                alert(`The balloon burst! You lost this round's earnings and incurred a penalty of $${penalty.toFixed(2)}.`);
+                saveRoundData(pumpCount, currentEarnings, true);
+                setTimeout(() => {
+                    resetRound();
+                }, 500); // Wait for burst animation to complete
+            };
+
+            const calculatePenalty = () => {
+                return currentEarnings * 0.5; // 50% of current earnings as penalty
+            };
+
+            const handleBank = () => {
+                if (isBurst) return;
+
+                setTotalEarnings(totalEarnings + currentEarnings);
+                saveRoundData(pumpCount, currentEarnings, false);
+                if (currentRound >= totalRounds) {
+                    setShowDashboard(true);
+                } else {
+                    setCurrentRound(currentRound + 1);
+                    resetRound();
+                }
+            };
+
+            const resetRound = () => {
+                setPumpCount(0);
+                setCurrentEarnings(0);
+                setExplosionThreshold(generateExplosionThreshold());
+                setBalloonSize(64);
+                setIsBurst(false);
+            };
+
+            const calculateUserAggression = () => {
+                if (gameData.length === 0) return;
+                const avgPumps = gameData.reduce((sum, round) => sum + round.pumps, 0) / gameData.length;
+                setUserAggression(avgPumps / maxPumps);
+            };
+
+            const saveRoundData = (pumps, earnings, burst) => {
+                setGameData([...gameData, { round: currentRound, pumps, earnings, burst }]);
+            };
+
+            return showDashboard ? (
+                <Dashboard playerName={playerName} totalEarnings={totalEarnings} gameData={gameData} />
+            ) : (
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold mb-4">QuantZ Balloon Game</h1>
+                    <div className="mb-4">
+                        <div
+                            id="balloon"
+                            className={`balloon mx-auto ${isBurst ? 'burst' : ''}`}
+                            style={{ width: `${balloonSize}px`, height: `${balloonSize}px` }}
+                        ></div>
+                    </div>
+                    <div className="mb-4">
+                        <button
+                            id="pumpButton"
+                            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-700 mr-2"
+                            onClick={handlePump}
+                            disabled={isBurst}
+                        >
+                            Pump
+                        </button>
+                        <button
+                            id="bankButton"
+                            className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-700"
+                            onClick={handleBank}
+                            disabled={isBurst}
+                        >
+                            Bank Earnings
+                        </button>
+                    </div>
+                    <div className="text-left">
+                        <p id="roundInfo" className="mb-2">Round: {currentRound}/{totalRounds}</p>
+                        <p id="currentEarnings" className="mb-2">Current Earnings: ${currentEarnings.toFixed(2)}</p>
+                        <p id="totalEarnings" className="mb-2">Total Earnings: ${totalEarnings.toFixed(2)}</p>
+                    </div>
+                </div>
+            );
+        };
+
+        const Dashboard = ({ playerName, totalEarnings, gameData }) => {
+            return (
+                <div className="text-center">
+                    <h1 className="text-3xl font-bold mb-4">Game Over!</h1>
+                    <p className="text-xl mb-2">Player: {playerName}</p>
+                    <p className="text-xl mb-2">Total Earnings: ${totalEarnings.toFixed(2)}</p>
+                    <h2 className="text-2xl font-bold mt-4">Round Summary</h2>
+                    <div className="mt-4">
+                        {gameData.map((round, index) => (
+                            <p key={index} className="mb-1">
+                                Round {round.round}: {round.burst ? 'Burst' : 'Banked'} - Pumps: {round.pumps}, Earnings: ${round.earnings.toFixed(2)}
+                            </p>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [playerName, setPlayerName] = useState('');
+
+            const handleStart = (name) => {
+                setPlayerName(name);
+            };
+
+            return (
+                <div>
+                    {playerName ? (
+                        <BalloonGame playerName={playerName} />
+                    ) : (
+                        <LandingForm onStart={handleStart} />
+                    )}
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
